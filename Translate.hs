@@ -49,8 +49,18 @@ translateMain sc (A.MainClass _ _ _ xs) = do
   return $ Method "Lmain" 1 [stm, MOVE (TEMP temp) (CONST 0)] (temp)
 
 translateClass :: Scope -> A.ClassDecl -> NameGen [Method]
-translateClass scMain (A.ClassDecl clsName _ varDeclS metDeclS) = do
-  mapM  (translateMet scMain clsName varDeclS) metDeclS
+translateClass scMain (A.ClassDecl clsName baseClassOpt varDeclS metDeclS) = do
+  meths <- mapM  (translateMet scMain clsName varDeclS) metDeclS
+  chkCls
+  return meths
+  where
+    chkCls :: NameGen()
+    chkCls = case baseClassOpt of
+      A.MaybeNo -> return ()
+      A.MaybeId -> 
+        throw (ApplicationException $
+          "Inheritance is not supported but class " ++ clsName ++
+          " has a base class!")
 
 translateMet :: Scope -> String -> [A.VarDecl] -> A.MetDecl -> NameGen Method
 translateMet scMain clsName clsVars metDecl = do
@@ -321,10 +331,10 @@ assert sc conText expectedType exp1 exp2 = do
   (typeExp2, rexp2) <- (translateExp sc exp2)
   if expectedType /= typeExp1 then
     throw (ApplicationException $ errorOut exp1
-           (conText ++ " in Exp 1 '" ++ show rexp1 ++ "'") expectedType typeExp1)
+           (conText ++ " in Exp 1 '" ++ show exp1 ++ "'") expectedType typeExp1)
   else if expectedType /= typeExp2 then 
     throw (ApplicationException $ errorOut exp2
-           (conText ++ " in Exp 2 '" ++ show rexp2 ++ "'") expectedType typeExp2)
+           (conText ++ " in Exp 2 '" ++ show exp2 ++ "'") expectedType typeExp2)
   else return (rexp1, rexp2)
 
 errorOut :: A.Exp -> String -> A.Type -> A.Type -> String
@@ -350,7 +360,7 @@ chkNonInit
   :: Scope          -- refVars
   -> HashSet String -- list of used but not assigned local(!) variables
   -> NameGen()
-chkNonInit _ refVars =
+chkNonInit scope refVars =
   if refVars == HashSet.empty then
     return ()
   else
@@ -359,8 +369,9 @@ chkNonInit _ refVars =
     fmtErr :: String -> String
     fmtErr ident =
       --let varInfo = scope_LookUpVar scope ident
-          "Error - variable '" ++ ident ++ "' declared at " ++
-          fmtFilePos (-1, -1) ++
+          "Error - variable '" ++ ident ++ "'" ++
+          -- " declared at " ++ fmtFilePos (-1, -1) ++
+          " in function '" ++ scope_getMetName scope ++ 
           "' might not be initialized before first use!\n"
   
 chkNonInitExp ::

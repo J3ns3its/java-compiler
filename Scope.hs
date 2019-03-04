@@ -6,6 +6,7 @@ module Scope (
   VarInfo(..),
   VarScope(..),
   ClsInfo(..),
+  scope_getMetName,
   scope_LookUpVar,
   scope_LookUpVarAndChk,
   scope_LookUpClass,
@@ -48,6 +49,7 @@ data Scope = Scope {
   sc_name    :: String,
   sc_clsName :: String, -- empty for main class
   sc_clsInfo :: SCMap ClsInfo,
+  sc_metName :: String, -- name of func scope belongs to, "main" for main class
   sc_metType :: SCMap A.Type,
   sc_varInfo :: SCMap VarInfo  -- all infos needed by 'ExpId <identidifer>'  
   } deriving Show
@@ -76,6 +78,7 @@ scope_InitMain classDeclS =
     sc_clsName = "",
     sc_clsInfo = foldl' clsFoldFun HMap.empty $ (zip [1..] classDeclS),
     sc_metType = foldl' metFoldFun HMap.empty $ classDeclS,
+    sc_metName = "main",
     sc_varInfo = HMap.empty  --foldl' varFoldFun HMap.empty $ classDeclS
     }
   where
@@ -109,6 +112,7 @@ scope_InitMet scMain clsName clsVarS metDecl = do
     sc_clsName = clsName,
     sc_clsInfo = sc_clsInfo scMain,
     sc_metType = sc_metType scMain,
+    sc_metName = A.md_name metDecl,
     -- 3. add function parameters to HashMap (-> sc_varInfo):
     sc_varInfo = foldl' paraFoldFun hm' $ zip [1..] $ A.md_params metDecl
     
@@ -132,6 +136,9 @@ scope_InitMet scMain clsName clsVarS metDecl = do
      
      
 -- ******************************************SCOPE Lookup**********************************************
+-- Name of current method 
+scope_getMetName :: Scope -> String
+scope_getMetName sc =  sc_metName sc
 
 scope_LookUpVar :: Scope -> String -> VarInfo  
 scope_LookUpVar sc varName = 
