@@ -251,16 +251,18 @@ tracing _ _ _ = undefined
 
 -- finds Block that starts with checkLbl and returns the List of Blocks
 -- found Block is first element of that list
+{-
 getCheckLbl :: Label -> BlockList -> BlockList -> BlockList
 getCheckLbl _ [] travBlockS = travBlockS
 getCheckLbl checkLbl(nextBlock@(getLb, _, _):getBlockS) travBlockS
   | checkLbl == getLb = (nextBlock:(travBlockS ++ getBlockS))
   | otherwise = getCheckLbl checkLbl getBlockS (travBlockS ++ [nextBlock])
+-}
 
-{-
-getCheckLbl _ [] travBlockS = reserve travBlockS
+getCheckLbl :: Label -> BlockList -> BlockList -> BlockList
+getCheckLbl _ [] travBlockS = reverse travBlockS
 getCheckLbl checkLbl (nextBlock@(getLb, _, _):getBlockS) travBlockS
   | checkLbl == getLb = (nextBlock: reverse travBlockS ++ getBlockS)
   | otherwise = getCheckLbl checkLbl getBlockS (nextBlock:travBlockS)
--}
+
 -- eof
