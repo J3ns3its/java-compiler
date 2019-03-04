@@ -129,6 +129,9 @@ canStm (MOVE (ESEQ s1 e1) e2) =
      cs2 <- canStm (MOVE e1 e2)
      return $ append cs1 cs2
 
+canStm (MOVE x y) = error $ "unsupported arg passed to canStm (MOV...): " ++
+      show x ++ ", " ++ show y
+
 canStm (JUMP e ls) =
   do ce <- canExp' e
      (ss, s) <- lift (`JUMP` ls) ce
@@ -248,8 +251,8 @@ tracing _ _ _ = undefined
 
 -- finds Block that starts with checkLbl and returns the List of Blocks
 -- found Block is first element of that list
-getCheckLbl :: Label -> BlockList -> BlockList -> BlockList
+getCheckLbl :: Label -> BlockList ->  BlockList -> BlockList
 getCheckLbl _ [] travBlockS = travBlockS
-getCheckLbl checkLbl(nextBlock@(getLb, _, _):getBlockS) travBlockS
-  | checkLbl == getLb = (nextBlock:(travBlockS ++ getBlockS))
-  | otherwise = getCheckLbl checkLbl getBlockS (travBlockS ++ [nextBlock])
+getCheckLbl checkLbl (nextBlock@(getLb, _, _):getBlockS) travBlockS
+  | checkLbl == getLb = (nextBlock: reverse travBlockS ++ getBlockS)
+  | otherwise = getCheckLbl checkLbl getBlockS (nextBlock:travBlockS)
