@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module X86Function where
 
---import Data.Int(Int32)
+import Data.List
 import Control.Monad
 import Backend
 import X86Instr
@@ -11,7 +11,8 @@ data X86Function = X86Function { x86FunctionName:: String,
                                  x86FunctionBody:: [X86Instr] }
                    
 instance Show X86Function where
-  show fun = (x86FunctionName fun) ++ ":\n" ++ (concat .  map show . x86FunctionBody) fun 
+  show fun = (x86FunctionName fun) ++ ":\n" ++
+    (foldl' (\is i -> show i ++ is) [] . reverse $ x86FunctionBody fun)
 
 instance MachineFunction X86Function X86Instr where
   machineFunctionName = x86FunctionName
@@ -20,8 +21,7 @@ instance MachineFunction X86Function X86Instr where
   -- machineFunctionRename :: f -> (Temp -> Temp) -> f 
   machineFunctionRename func sigma =
     X86Function (x86FunctionName func)
-                (map (flip renameInstr sigma) $ x86FunctionBody func)
---                (filter (\i -> i /= NOP) . map (flip renameInstr sigma) $ x86FunctionBody func)
+                (filter (\i -> i /= NOP) . map (flip renameInstr sigma) $ x86FunctionBody func)
   
   -- machineFunctionSpill :: MonadNameGen m => f -> [Temp] -> m f
   machineFunctionSpill func spillS = foldM spillAFunc func spillS

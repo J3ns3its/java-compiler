@@ -39,6 +39,8 @@ data Scale = S2 | S4 | S8 -- possible scaling values for effective addressing
 data EffectiveAddress = EffectiveAddress { base :: Maybe Temp,
                                            indexScale :: Maybe (Temp, Scale),
                                            displacement :: Int }
+                                           deriving (Eq)
+                      
 instance Show EffectiveAddress where
   show ea = case ea of
    (EffectiveAddress (Just tmp1) Nothing d) -> show tmp1 ++ addDisp d
@@ -54,6 +56,7 @@ instance Show EffectiveAddress where
 data Operand = Imm Int32
              | Reg Temp
              | Mem EffectiveAddress
+             deriving (Eq)
 --(Achtung: Das ist die erste Verwendung von mkNamedTemp!!!):
 tempEAX :: Temp
 tempEAX = mkNamedTemp "eax" -- CALLER save regiser
@@ -81,6 +84,7 @@ data X86Instr = Unary UnaryInstr Operand
               | CALL Label
               | RET
               | NOP
+              deriving (Eq)
 
 instance MachineInstr X86Instr where
   -- control flow graph:

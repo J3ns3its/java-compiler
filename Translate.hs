@@ -122,32 +122,38 @@ translateStm sc (A.StmAsnInt varName exp) = do
 translateStm sc (A.StmAsnArray varName idxExp valExp) = do
   (_, idExpTree) <- translateExp sc idxExp
   (_, valExpTree) <- translateExp sc valExp
-  lTrue1 <- nextLabel
+  lTrue1 <- nextLabel -- is not used for local vars
   lTrue2 <- nextLabel
   lTrue3 <- nextLabel    
-  lError1 <- nextLabel
+  lError1 <- nextLabel -- is not used for local vars
   lError2 <- nextLabel  
   lError3 <- nextLabel
   tempIdExp <- nextTemp
   tempLocal <- nextTemp
-  let (VarInfo aryExp _ _) = scope_LookUpVarAndChk sc varName (getFilePos idxExp)
-  return $ SEQ [
-        MOVE (TEMP tempIdExp) idExpTree,
-        CJUMP Tree.NE aryExp (CONST 0) lTrue1 lError1,  
-        LABEL lTrue1,
-        CJUMP Tree.GE (TEMP tempIdExp) (CONST 0) lTrue2 lError2,
-        LABEL lTrue2,
-        CJUMP LT (TEMP tempIdExp) (MEM aryExp) lTrue3 lError3,
-        LABEL lError1,
-        mkRaiseStm tempLocal idxExp Except_Array_NotInitialized,
-        LABEL lError2,
-        mkRaiseStm tempLocal idxExp Except_ArrayIdx_Negative,    
-        LABEL lError3,
-        mkRaiseStm tempLocal idxExp Except_ArrayIdx_TooBig,
-        LABEL lTrue3,
-        MOVE (MEM $ BINOP PLUS aryExp (BINOP MUL (CONST 4) (BINOP PLUS (CONST 1) (TEMP tempIdExp))))
+  let (VarInfo aryExp _ varsc) = scope_LookUpVarAndChk sc varName (getFilePos idxExp)
+  let chkUninitVarStms = if varsc /= VarClass then
+        -- check not needed, this is hanlded by the chkNonInit.. functions
+        -- looking for uninitialized local variables. And function parameters
+        -- are always considered as been initialized
+        []
+      else
+        [CJUMP Tree.NE aryExp (CONST 0) lTrue1 lError1,  
+         LABEL lError1,
+         mkRaiseStm tempLocal idxExp Except_Array_NotInitialized,
+         LABEL lTrue1]
+
+  return $ SEQ ((MOVE (TEMP tempIdExp) idExpTree) : chkUninitVarStms ++
+        [CJUMP Tree.GE (TEMP tempIdExp) (CONST 0) lTrue2 lError2,
+          LABEL lTrue2,
+          CJUMP LT (TEMP tempIdExp) (MEM aryExp) lTrue3 lError3,
+          LABEL lError2,
+          mkRaiseStm tempLocal idxExp Except_ArrayIdx_Negative,    
+          LABEL lError3,
+          mkRaiseStm tempLocal idxExp Except_ArrayIdx_TooBig,
+          LABEL lTrue3,
+          MOVE (MEM $ BINOP PLUS aryExp (BINOP MUL (CONST 4) (BINOP PLUS (CONST 1) (TEMP tempIdExp))))
           valExpTree
-        ]
+        ])
     
 translateStm sc (A.StmPrln exp1) = do
   temp <-nextTemp
