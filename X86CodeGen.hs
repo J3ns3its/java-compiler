@@ -1,14 +1,14 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module X86CodeGen (X86CodeGen(..)) where
 
-import qualified Data.DList as DL
+-- import qualified Data.DList as DL
 import Control.Monad.Writer.Strict -- for MonadWriterT
 
 import Backend
 import X86Instr
 import X86Function
 import X86Prg
-import Control.Monad
+-- import Control.Monad
 import Names
 import Tree
 --import Debug.Trace
