@@ -20,6 +20,7 @@ known limitations:
   o no support for class inheritance
   o IO Exception clause are not checked
 
+
 additional featurs
   1. compiler errors show file location of errors.
   2. runtime checks before any access to allocated variables, i.e.
