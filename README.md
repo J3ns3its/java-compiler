@@ -1,28 +1,24 @@
-Praktikum CompilerBau - mini Java compiler
-
-Author: Jens Hartmann
-
-language: Haskell
+# Praktikum CompilerBau - mini Java compiler
 
 build instructions:
   cabal build
 
-usage:
+## usage:
    straigtline-exe -v <mini-java file>
     -v: output intermediate results"
 
-compiling and linking mini-java program:
+ compiling and linking mini-java program:
   ./dist/build/main/main HelloWorld.java
   gcc -m32 runtime.c HelloWorld.s -o HelloWorld
 
 
-known limitations:
+## known limitations:
   o no support for class inheritance
   o IO Exception clause are not checked
   o typechecks are not fully implemented,
     not all ShouldFail Tests pass
 
-additional featurs
+## additional featurs
   1. compiler errors show file location of errors.
   2. runtime checks before any access to allocated variables, i.e.
      int arrays and objects.
@@ -30,5 +26,5 @@ additional featurs
      rrrrcccee rrrr = row
      	       ccc  = column
 	       ee   = error number as seen in Translate
--- eof  
+
   
