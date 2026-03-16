@@ -156,6 +156,8 @@ canStm (LABEL l) = return (Empty `Then` LABEL l)
 -- | Canonization of functions
 canMethod :: (MonadNameGen m) => Method -> m Method
 canMethod m = do
+  -- jump on andlabel is added at the last block if no jumps preexists
+  -- endlabel is added as last Stm in either case
   endLabel <- nextLabel
   body' <- mapM canStm (body m)
     >>= return . concatMap asList
@@ -166,6 +168,7 @@ canMethod m = do
                     body = body',
                     returnTemp = returnTemp m }
   where
+    -- inital call for blockstm, creates label if needed for Blocks
     aux :: (MonadNameGen m) => Label ->  [Stm] -> m BlockList
     aux eL stmAll@(stm1:stmS) = do
       case stm1 of
@@ -181,7 +184,15 @@ canPrg p
     = do mm <- mapM canMethod (methods p)
          return Prg { methods = mm }
 
-blockStm :: (MonadNameGen m) => Label -> (Label, DL.DList Stm, Maybe Stm) -> [Stm] -> m BlockList
+-- traverses List of Statements
+-- if label is found, a new block begins
+-- and a jump is added to the previous block
+-- if JUMP or CJUMP is found, block ends
+blockStm :: (MonadNameGen m)
+         => Label  -- endLabel
+         -> (Label, DL.DList Stm, Maybe Stm) -- Block that is currently build
+         -> [Stm] 
+         -> m BlockList 
 blockStm endLabel (lb, stmTs, Nothing) [] = do
   return $ [(lb, stmTs, JUMP (NAME endLabel) [endLabel])]
 blockStm _ (lb, stmTs, Just jmp) [] = return [(lb, stmTs, jmp)]
@@ -200,41 +211,31 @@ blockStm eL (lb, stmTs, Nothing) (stm1:stms) =
                    return . ((lb, stmTs, JUMP (NAME label) [label]) :)
     _ -> undefined
 blockStm _ _ _ = undefined
-{-
-tracingInit :: BlockList -> [Stm]
-tracingInit blockS | dlist == DL.empty && jmp == Nothing =
-                     tracing (LABEL "") [] (init blockS) ++ LABEL lb
-                   | otherwise = tracing (LABEL "") [] blockS
-  where
-    (lb, dlist, jmp) = blockS ! (length blockS) 
--}
 
-
+-- blocks are concatinated into list of statements
+-- for each JUMP or CJUMP, the Block with the belonging label is attached next
+--   if still available
 tracing :: Stm -> [Stm] -> BlockList -> [Stm]
-tracing stm stmS []  = stmS ++ [stm] -- ++ LABEL endLabel
+tracing stm stmS []  = stmS ++ [stm]
+-- Initial call with LABEL "", as each block ends with JUMP or CJUMP 
 tracing (LABEL "") stmS ((lb, stmTs, nextJumpStm):blockList) = do
   tracing nextJumpStm (stmS ++ [LABEL lb] ++ (DL.toList stmTs)) blockList
 tracing jmpStm@(JUMP (NAME checkLbl) [_]) stmS blockList = do
   let ((lb, stmTs, nextJmpStm):blockS) = getCheckLbl checkLbl blockList []
   if checkLbl == lb then
-    --"" -> tracing label (stmS++[LABEL lb] ++ stmTs) blockS
     tracing nextJmpStm (stmS ++ [LABEL lb] ++ (DL.toList stmTs)) blockS
     else tracing nextJmpStm (stmS ++ [jmpStm] ++ [LABEL lb] ++ (DL.toList stmTs)) blockS
-   
-
---tracing cJmpStm@(CJUMP _ _ _ _ _) stmS ((lb, stmTs, nextJmpStm):blockList) = do
---tracing nextJmpStm (stmS ++ [cJmpStm] ++ [LABEL lb] ++ (DL.toList stmTs)) blockList 
-
 tracing cJmpStm@(CJUMP relOp e1 e2 lbThen lbElse) stmS blockList = do
-  
---  tracing nextJumpStm (stmS ++ [cJmpStm] ++ [LABEL lb] ++ (DL.toList stmTs)) blockList
   let ((lb, stmTs, nextJmpStm):blockS) = getCheckLbl lbElse blockList []
+  -- checks if THEN-block still available
   if lb == lbElse then
     tracing nextJmpStm (stmS ++ [cJmpStm] ++ [LABEL lb] ++ (DL.toList stmTs)) blockS
     else do
+    -- if ELSE-block still available, negates Operator and switches Labels
     let ((lb', stmTs', nextJmpStm'):blockS') = getCheckLbl lbThen blockList []    
     if lb' == lbThen then
       tracing nextJmpStm' (stmS ++ [CJUMP negOp e1 e2 lbElse lbThen] ++ [LABEL lb'] ++ (DL.toList stmTs')) blockS'
+    -- crates dummy ELSE-Label for Jumping to the real one
     else
       tracing (LABEL "") (stmS ++ [cJmpStm] ++ [JUMP (NAME lbElse) [lbElse]]) blockList
   where
@@ -251,14 +252,6 @@ tracing _ _ _ = undefined
 
 -- finds Block that starts with checkLbl and returns the List of Blocks
 -- found Block is first element of that list
-{-
-getCheckLbl :: Label -> BlockList -> BlockList -> BlockList
-getCheckLbl _ [] travBlockS = travBlockS
-getCheckLbl checkLbl(nextBlock@(getLb, _, _):getBlockS) travBlockS
-  | checkLbl == getLb = (nextBlock:(travBlockS ++ getBlockS))
-  | otherwise = getCheckLbl checkLbl getBlockS (travBlockS ++ [nextBlock])
--}
-
 getCheckLbl :: Label -> BlockList -> BlockList -> BlockList
 getCheckLbl _ [] travBlockS = reverse travBlockS
 getCheckLbl checkLbl (nextBlock@(getLb, _, _):getBlockS) travBlockS
